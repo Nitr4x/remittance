@@ -86,7 +86,7 @@ contract Remittance is Stoppable {
         return true;
     }
     
-    function witdrawFees() public _onlyOwner returns(bool success) {
+    function withdrawFees() public _onlyOwner returns(bool success) {
         uint amount = fees;
         
         require(amount > 0, "Nothing to withdraw");

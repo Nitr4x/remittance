@@ -1,11 +1,13 @@
 {
     "name": "Remittance",
     "description": "B9lab remittance project",
-    "dependencies": {},
+    "dependencies": {
+    },
     "scripts": {
         "test": "truffle test"
     },
     "devDependencies": {
-        "truffle-assertions": "^0.9.1"
+        "truffle-assertions": "^0.9.1",
+        "big-number": "^2.0.0"
     }
 }

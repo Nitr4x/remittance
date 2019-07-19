@@ -12,6 +12,7 @@ contract('Remittance', (accounts) => {
     const stranger = accounts[2];
     const nil = "0x0000000000000000000000000000000000000000";
     const password = web3.utils.utf8ToHex("123456");
+    const fiveDays = 5 * 24 * 60 * 60;
     let instance;
 
     const evmMethod = (method, params = []) => {
@@ -66,7 +67,7 @@ contract('Remittance', (accounts) => {
         });
     
         it('Should create a new transaction', async () => {
-            const txObj = await instance.newTransaction(exchange, hashedOTP, 0, {from: stranger, value: toWei("0.1", "ether")});
+            const txObj = await instance.newTransaction(exchange, hashedOTP, fiveDays, {from: stranger, value: toWei("0.1", "ether")});
             assert.strictEqual(txObj.logs.length, 2);
             assert.strictEqual(txObj.logs[0].event, "LogTakeFees");
             assert.strictEqual(txObj.logs[0].args[0], stranger);
@@ -76,30 +77,36 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(txObj.logs[1].args[0], stranger);
             assert.strictEqual(txObj.logs[1].args[1], exchange);
             assert.strictEqual(txObj.logs[1].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            
+            const order = await instance.transactions.call(hashedOTP);
+            assert.strictEqual(order.amount.toString(), new BN(toWei("0.1", "ether")).minus(2000).toString())
+
+            const fees = await instance.fees.call(owner);
+            assert.strictEqual(fees.toString(), "2000");
         });
     
         it('Should fail if the address is invalid', async () => {
             await truffleAssert.reverts(
-                instance.newTransaction(nil, hashedOTP, 0, {from: owner, value: toWei("0.1", "ether")})
+                instance.newTransaction(nil, hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")})
             );       
         });
 
         it('Should fail if the hashOTP is invalid', async () => {
             await truffleAssert.reverts(
-                instance.newTransaction(exchange, web3.utils.utf8ToHex(""), 0, {from: owner, value: toWei("0.1", "ether")})
+                instance.newTransaction(exchange, web3.utils.utf8ToHex(""), fiveDays, {from: owner, value: toWei("0.1", "ether")})
             );          
         });
 
         it('Should fail if the tx value is equal to 0', async () => {
             await truffleAssert.reverts(
-                instance.newTransaction(exchange, password, 0, {from: owner})
+                instance.newTransaction(exchange, password, fiveDays, {from: owner})
             );          
         });
 
         it('Should fail if the hashedOTP is already used', async () => {
-            await instance.newTransaction(exchange, hashedOTP, 0, {from: owner, value: toWei("0.1", "ether")})
+            await instance.newTransaction(exchange, hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")})
             await truffleAssert.reverts(
-                instance.newTransaction(exchange, hashedOTP, 0, {from: owner, value: toWei("0.1", "ether")})
+                instance.newTransaction(exchange, hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")})
             );
         });
     })
@@ -110,7 +117,7 @@ contract('Remittance', (accounts) => {
         beforeEach('Creating new transaction', async () => {
             hashedOTP = await instance.hashOTP(exchange, password);
 
-            const txObj = await instance.newTransaction(exchange, hashedOTP, 0, {from: owner, value: toWei("0.1", "ether")});
+            const txObj = await instance.newTransaction(exchange, hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
 
             assert.strictEqual(txObj.logs.length, 2);
             assert.strictEqual(txObj.logs[0].event, "LogTakeFees");
@@ -124,9 +131,9 @@ contract('Remittance', (accounts) => {
 
         it('Should be able to cancel a transaction after one 1 day time', async () => {
             hashedOTP = await instance.hashOTP(owner, password);
-            await instance.newTransaction(owner, hashedOTP, 1, {from: owner, value: toWei("0.1", "ether")});
+            await instance.newTransaction(owner, hashedOTP, 1 * 24 * 60 * 60, {from: owner, value: toWei("0.1", "ether")});
 
-            await increaseTime(2 * 24 * 60 * 60);
+            await increaseTime(1 * 24 * 60 * 60);
     
             let txObj = await instance.cancelTransaction(owner, hashedOTP, {from: owner});
             assert.strictEqual(txObj.logs.length, 1);
@@ -134,10 +141,13 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(txObj.logs[0].args[0], owner);
             assert.strictEqual(txObj.logs[0].args[1], owner);
             assert.strictEqual(txObj.logs[0].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+
+            const order = instance.transactions.call(hashedOTP);
+            assert.strictEqual(order.emitter, undefined);
         });
 
         it('Should be able to cancel a transaction and create a new transaction with the same underlying hash', async () => {
-            await increaseTime(5 * 24 * 60 * 60);
+            await increaseTime(fiveDays);
     
             let txObj = await instance.cancelTransaction(exchange, hashedOTP, {from: owner});
             assert.strictEqual(txObj.logs.length, 1);
@@ -146,16 +156,25 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(txObj.logs[0].args[1], exchange);
             assert.strictEqual(txObj.logs[0].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
     
-            txObj = await instance.newTransaction(exchange, hashedOTP, 0, {from: owner, value: toWei("0.1", "ether")});
+            let order = instance.transactions.call(hashedOTP);
+            assert.strictEqual(order.emitter, undefined);
+
+            txObj = await instance.newTransaction(exchange, hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
             assert.strictEqual(txObj.logs.length, 2);
             assert.strictEqual(txObj.logs[1].event, "LogNewTransaction");
             assert.strictEqual(txObj.logs[1].args[0], owner);
             assert.strictEqual(txObj.logs[1].args[1], exchange);
             assert.strictEqual(txObj.logs[1].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+
+            order = await instance.transactions.call(hashedOTP);
+            assert.strictEqual(order.amount.toString(), new BN(toWei("0.1", "ether")).minus(2000).toString())
+
+            const fees = await instance.fees.call(owner);
+            assert.strictEqual(fees.toString(), "4000");
         });
     
         it('Should not be able to cancel a transaction if the sender is not the tx emitter', async () => {
-            await increaseTime(5 * 24 * 60 * 60);
+            await increaseTime(fiveDays);
     
             await truffleAssert.reverts(
                 instance.cancelTransaction(exchange, hashedOTP, {from: stranger})
@@ -163,7 +182,7 @@ contract('Remittance', (accounts) => {
         });
     
         it('Should not be able to cancel a transaction with invalid address & password', async () => {
-            await increaseTime(5 * 24 * 60 * 60);
+            await increaseTime(fiveDays);
     
             await truffleAssert.reverts(
                 instance.cancelTransaction(exchange, web3.utils.utf8ToHex(""), {from: stranger})
@@ -178,10 +197,12 @@ contract('Remittance', (accounts) => {
     });
 
     describe('======= withdraw unit testing =======', () => {
-        beforeEach('Creating new transaction', async () => {
-            const hashedOTP = await instance.hashOTP(exchange, password);
+        let hashedOTP;
 
-            const txObj = await instance.newTransaction(exchange, hashedOTP, 0, {from: owner, value: toWei("0.1", "ether")});
+        beforeEach('Creating new transaction', async () => {
+            hashedOTP = await instance.hashOTP(exchange, password);
+
+            const txObj = await instance.newTransaction(exchange, hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
 
             assert.strictEqual(txObj.logs.length, 2);
             assert.strictEqual(txObj.logs[0].event, "LogTakeFees");
@@ -208,20 +229,22 @@ contract('Remittance', (accounts) => {
         it('Should withdraw the exchange balance', async () => {
             let initialBalance = new BN(await web3.eth.getBalance(exchange));
 
-            const txObj = await instance.withdraw(password, {
-                from: exchange,
-                gasPrice: 50
-            });
+            const txObj = await instance.withdraw(password, {from: exchange });
+            const gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
+
             assert.strictEqual(txObj.logs.length, 1);
             assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
             assert.strictEqual(txObj.logs[0].args[0], exchange);
             assert.strictEqual(txObj.logs[0].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
 
-            initialBalance.minus(txObj.receipt.gasUsed * 50);
+            initialBalance.minus(txObj.receipt.gasUsed * gasPrice);
             initialBalance.add(toWei("0.1", "ether"));
             initialBalance.minus(2000);
 
             assert.strictEqual(await web3.eth.getBalance(exchange), initialBalance.toString());
+
+            const order = await instance.transactions.call(hashedOTP);
+            assert.strictEqual(order.amount.toString(), "0")
         });
 
         it('Should not be able to withdraw two times', async () => {
@@ -236,7 +259,7 @@ contract('Remittance', (accounts) => {
         beforeEach('Creating new transaction', async () => {
             const hashedOTP = await instance.hashOTP(exchange, password);
 
-            await instance.newTransaction(exchange, hashedOTP, 0, {from: stranger, value: toWei("0.1", "ether")});
+            await instance.newTransaction(exchange, hashedOTP, fiveDays, {from: stranger, value: toWei("0.1", "ether")});
         });
 
         it('Should fail if there is nothing to withdraw', async () => {
@@ -246,22 +269,25 @@ contract('Remittance', (accounts) => {
             );
         });
 
-        it('Should withdraw the exchange balance', async () => {
+        it('Should withdraw the owner fees', async () => {
             let initialBalance = new BN(await web3.eth.getBalance(owner));
 
-            const txObj = await instance.withdrawFees({
-                from: owner,
-                gasPrice: 50
-            });
+            const txObj = await instance.withdrawFees({ from: owner });
+            const gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
+
             assert.strictEqual(txObj.logs.length, 1);
             assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
             assert.strictEqual(txObj.logs[0].args[0], owner);
             assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
 
-            initialBalance.minus(txObj.receipt.gasUsed * 50);
+            initialBalance.minus(txObj.receipt.gasUsed * gasPrice);
             initialBalance.add(2000);
 
             assert.strictEqual(await web3.eth.getBalance(owner), initialBalance.toString());
+
+            const fees = await instance.fees.call(owner);
+            assert.strictEqual(fees.toString(), "0");
+
         });
     });
 })

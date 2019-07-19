@@ -13,10 +13,9 @@ contract Remittance is Stoppable {
     }
     
     uint constant TX_FEES = 2000;
-    uint constant CANCELLATION_DELAY = 5 days;
-    
-    mapping(bytes32 => Order) private transactions;
-    mapping(address => uint) private fees;
+
+    mapping(bytes32 => Order) public transactions;
+    mapping(address => uint) public fees;
     
     event LogNewTransaction(address indexed emitter, address exchange, uint amount);
     event LogTakeFees(address indexed emitter, uint amount);
@@ -30,7 +29,7 @@ contract Remittance is Stoppable {
     
     function newTransaction(address exchange, bytes32 hashedOTP, uint delay) _onlyIfRunning public payable returns(bool success) {
         require(exchange != address(0) && hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that both exchange and the secret are set and that your transaction value is above 0");
-
+        require(delay > 0 days, "Delay should be above 0 day");
         require(transactions[hashedOTP].emitter == address(0), "Password already used");
         
         uint amount = msg.value.sub(TX_FEES);
@@ -40,7 +39,7 @@ contract Remittance is Stoppable {
         
         emit LogNewTransaction(msg.sender, exchange, amount);
         transactions[hashedOTP] = Order({
-            time: now.add((delay == 0) ? CANCELLATION_DELAY : delay),
+            time: now.add(delay),
             emitter: msg.sender,
             amount: amount
         });
@@ -82,12 +81,11 @@ contract Remittance is Stoppable {
     }
     
     function withdrawFees() public returns(bool success) {
-        address owner = getOwner();
-        uint amount = fees[owner];
+        uint amount = fees[msg.sender];
         
         require(amount > 0, "Nothing to withdraw");
         
-        fees[owner] = 0;
+        fees[msg.sender] = 0;
         
         emit LogWithdraw(msg.sender, amount);
         msg.sender.transfer(amount);

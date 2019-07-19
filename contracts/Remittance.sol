@@ -34,11 +34,10 @@ contract Remittance is Stoppable {
         require(transactions[hashedOTP].emitter == address(0), "Password already used");
         
         uint amount = msg.value;
-        if (getOwner() != msg.sender) {
-            fees[getOwner()] = fees[getOwner()].add(TX_FEES);
-            amount = amount.sub(TX_FEES);
-            emit LogTakeFees(msg.sender, TX_FEES);
-        }
+
+        fees[getOwner()] = fees[getOwner()].add(TX_FEES);
+        amount = amount.sub(TX_FEES);
+        emit LogTakeFees(msg.sender, TX_FEES);
         
         emit LogNewTransaction(msg.sender, exchange, amount);
         transactions[hashedOTP] = Order({

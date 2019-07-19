@@ -289,5 +289,51 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(fees.toString(), "0");
 
         });
+
+        it('Should allow various person to withdraw fees', async () => {
+            let txObj = await instance.changeOwner(stranger, {from: owner});
+            
+            assert.strictEqual(txObj.logs.length, 1);
+            assert.strictEqual(txObj.logs[0].event, "LogOwnerChanged");
+            assert.strictEqual(txObj.logs[0].args[0], stranger);
+
+            await instance.newTransaction(exchange, await instance.hashOTP(exchange, web3.utils.utf8ToHex("haha")), fiveDays, {from: owner, value: toWei("0.1", "ether")});
+
+            let initialBalance = new BN(await web3.eth.getBalance(owner));
+
+            txObj = await instance.withdrawFees({ from: owner });
+            let gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
+
+            assert.strictEqual(txObj.logs.length, 1);
+            assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
+            assert.strictEqual(txObj.logs[0].args[0], owner);
+            assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
+
+            initialBalance.minus(txObj.receipt.gasUsed * gasPrice);
+            initialBalance.add(2000);
+
+            assert.strictEqual(await web3.eth.getBalance(owner), initialBalance.toString());
+
+            let fees = await instance.fees.call(owner);
+            assert.strictEqual(fees.toString(), "0");
+
+            initialBalance = new BN(await web3.eth.getBalance(stranger));
+
+            txObj = await instance.withdrawFees({ from: stranger });
+            gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
+
+            assert.strictEqual(txObj.logs.length, 1);
+            assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
+            assert.strictEqual(txObj.logs[0].args[0], stranger);
+            assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
+
+            initialBalance.minus(txObj.receipt.gasUsed * gasPrice);
+            initialBalance.add(2000);
+
+            assert.strictEqual(await web3.eth.getBalance(stranger), initialBalance.toString());
+
+            fees = await instance.fees.call(stranger);
+            assert.strictEqual(fees.toString(), "0");
+        });
     });
 })

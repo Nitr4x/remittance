@@ -22,7 +22,9 @@ contract('Owned', (accounts) => {
     // Testing changeOwner function.
     it('Owner should be ' + accounts[1], () => {
         return instance.changeOwner(accounts[1], {from: accounts[0]})
-            .then(() => {
+            .then((txObj) => {
+                assert.strictEqual(txObj.logs.length, 1);
+                assert.strictEqual(txObj.logs[0].event, "LogOwnerChanged");
                 return instance.getOwner();
             })
             .then(owner => {

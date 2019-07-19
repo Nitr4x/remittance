@@ -28,20 +28,19 @@ contract Remittance is Stoppable {
         hash = keccak256(abi.encodePacked(address(this), exchange, password));
     }
     
-    function newTransaction(address exchange, bytes32 hashedOTP) _onlyIfRunning public payable returns(bool success) {
+    function newTransaction(address exchange, bytes32 hashedOTP, uint delay) _onlyIfRunning public payable returns(bool success) {
         require(exchange != address(0) && hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that both exchange and the secret are set and that your transaction value is above 0");
 
         require(transactions[hashedOTP].emitter == address(0), "Password already used");
         
-        uint amount = msg.value;
+        uint amount = msg.value.sub(TX_FEES);
 
         fees[getOwner()] = fees[getOwner()].add(TX_FEES);
-        amount = amount.sub(TX_FEES);
         emit LogTakeFees(msg.sender, TX_FEES);
         
         emit LogNewTransaction(msg.sender, exchange, amount);
         transactions[hashedOTP] = Order({
-            time: now.add(CANCELLATION_DELAY),
+            time: now.add((delay == 0) ? CANCELLATION_DELAY : delay),
             emitter: msg.sender,
             amount: amount
         });
@@ -58,9 +57,7 @@ contract Remittance is Stoppable {
         require(now >= tx.time, "You must wait 5 days before cancelling the transaction");
         require(tx.emitter == msg.sender, "The call must be initiated by the wanted exchange");
         
-        transactions[hashedOTP].amount = 0;
-        transactions[hashedOTP].time = 0;
-        transactions[hashedOTP].emitter = address(0);
+        delete(transactions[hashedOTP]);
         
         emit LogCancelTransaction(msg.sender, exchange, tx.amount);
         msg.sender.transfer(tx.amount);
@@ -84,12 +81,13 @@ contract Remittance is Stoppable {
         return true;
     }
     
-    function withdrawFees() public _onlyOwner returns(bool success) {
-        uint amount = fees[getOwner()];
+    function withdrawFees() public returns(bool success) {
+        address owner = getOwner();
+        uint amount = fees[owner];
         
         require(amount > 0, "Nothing to withdraw");
         
-        fees[getOwner()] = 0;
+        fees[owner] = 0;
         
         emit LogWithdraw(msg.sender, amount);
         msg.sender.transfer(amount);

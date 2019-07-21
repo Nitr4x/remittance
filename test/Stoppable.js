@@ -8,7 +8,7 @@ contract('Stoppable', (accounts) => {
 
     // Initiating new contract before each test
     beforeEach("Creating new contract", async () => {
-        instance = await Stoppable.new({from: accounts[0]});
+        instance = await Stoppable.new(true, {from: accounts[0]});
     });
 
     // Testing that the function resumeContract is reverted if the contract is already running.

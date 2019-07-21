@@ -6,16 +6,16 @@ contract Stoppable is Owned {
     
     bool isRunning;
     
-    event LogPausedContract(address sender);
-    event LogResumeContract(address sender);
+    event LogPausedContract(address indexed sender);
+    event LogResumeContract(address indexed sender);
     
     modifier _onlyIfRunning {
         require(isRunning);
         _;
     }
     
-    constructor() public {
-        isRunning = true;
+    constructor(bool state) public {
+        isRunning = state;
     }
     
     function pauseContract() public _onlyOwner _onlyIfRunning returns(bool success) {

@@ -7,39 +7,42 @@ contract Remittance is Stoppable {
     using SafeMath for uint;
     
     struct Order {
-        uint time;
+        uint deadline;
         address emitter;
         uint amount;
     }
     
     uint constant TX_FEES = 2000;
 
-    mapping(bytes32 => Order) public transactions;
+    mapping(bytes32 => Order) public orders;
     mapping(address => uint) public fees;
     
-    event LogNewTransaction(address indexed emitter, address exchange, uint amount);
+    event LogNewOrder(address indexed emitter, uint amount, bytes32 hashedOTP);
     event LogTakeFees(address indexed emitter, uint amount);
-    event LogCancelTransaction(address indexed emitter, address exchange, uint amount);
+    event LogCancelOrder(address indexed emitter, uint amount, bytes32 hashedOTP);
     event LogWithdraw(address indexed emitter, uint amount);
+    
+    constructor(bool state) Stoppable(state) public {}
     
     function hashOTP(address exchange, bytes32 password) public view returns(bytes32 hash) {
         require(exchange != address(0) && password != 0, "Both exchange and password must be set");
         hash = keccak256(abi.encodePacked(address(this), exchange, password));
     }
     
-    function newTransaction(address exchange, bytes32 hashedOTP, uint delay) _onlyIfRunning public payable returns(bool success) {
-        require(exchange != address(0) && hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that both exchange and the secret are set and that your transaction value is above 0");
+    function newOrder(bytes32 hashedOTP, uint delay) _onlyIfRunning public payable returns(bool success) {
+        require(hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that the secret is set and that your transaction value is above 0");
         require(delay > 0 days, "Delay should be above 0 day");
-        require(transactions[hashedOTP].emitter == address(0), "Password already used");
+        require(orders[hashedOTP].emitter == address(0), "Password already used");
         
         uint amount = msg.value.sub(TX_FEES);
-
-        fees[getOwner()] = fees[getOwner()].add(TX_FEES);
+        address owner = getOwner();
+        
+        fees[owner] = fees[owner].add(TX_FEES);
         emit LogTakeFees(msg.sender, TX_FEES);
         
-        emit LogNewTransaction(msg.sender, exchange, amount);
-        transactions[hashedOTP] = Order({
-            time: now.add(delay),
+        emit LogNewOrder(msg.sender, amount, hashedOTP);
+        orders[hashedOTP] = Order({
+            deadline: now.add(delay),
             emitter: msg.sender,
             amount: amount
         });
@@ -47,32 +50,32 @@ contract Remittance is Stoppable {
         return true;
     }
     
-    function cancelTransaction(address exchange, bytes32 hashedOTP) public returns(bool success) {
+    function cancelOrder(bytes32 hashedOTP) public returns(bool success) {
         require(hashedOTP != 0, "The secret is not set");
         
-        Order memory tx = transactions[hashedOTP];
+        Order memory tx = orders[hashedOTP];
         
-        require(tx.amount > 0, "Neither the transaction does not exist or the password is wrong");
-        require(now >= tx.time, "You must wait 5 days before cancelling the transaction");
+        require(tx.amount > 0, "Neither the order does not exist or the password is wrong");
+        require(now >= tx.deadline, "You must wait 5 days before cancelling the transaction");
         require(tx.emitter == msg.sender, "The call must be initiated by the wanted exchange");
         
-        delete(transactions[hashedOTP]);
+        delete(orders[hashedOTP]);
         
-        emit LogCancelTransaction(msg.sender, exchange, tx.amount);
+        emit LogCancelOrder(msg.sender, tx.amount, hashedOTP);
         msg.sender.transfer(tx.amount);
         
         return true;
     }
     
     function withdraw(bytes32 password) public returns(bool success) {
-        bytes32 hash = hashOTP(msg.sender, password);
-        uint amount = transactions[hash].amount;
+        bytes32 hashedOTP = hashOTP(msg.sender, password);
+        uint amount = orders[hashedOTP].amount;
         
-        require(amount > 0, "Neither the transaction does not exist or the password is wrong");
+        require(amount > 0, "Neither the order does not exist or the password is wrong");
         
-        transactions[hash].amount = 0;
-        transactions[hash].time = 0;
-        transactions[hash].emitter = address(0);
+        orders[hashedOTP].amount = 0;
+        orders[hashedOTP].deadline = 0;
+        orders[hashedOTP].emitter = address(0);
         
         emit LogWithdraw(msg.sender, amount);
         msg.sender.transfer(amount);

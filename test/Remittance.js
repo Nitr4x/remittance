@@ -3,7 +3,7 @@
 const Remittance = artifacts.require('Remittance');
 const truffleAssert = require('truffle-assertions');
 
-const {toWei} = web3.utils;
+const {toWei, utf8ToHex} = web3.utils;
 const BN = require('big-number');
 
 contract('Remittance', (accounts) => {
@@ -11,7 +11,7 @@ contract('Remittance', (accounts) => {
     const exchange = accounts[1];
     const stranger = accounts[2];
     const nil = "0x0000000000000000000000000000000000000000";
-    const password = web3.utils.utf8ToHex("123456");
+    const password = utf8ToHex("123456");
     const fiveDays = 5 * 24 * 60 * 60;
     let instance;
 
@@ -48,7 +48,7 @@ contract('Remittance', (accounts) => {
     describe('======= hashOTP unit testing =======', () => {
         it('Should fail if the password is not set', async () => {
             await truffleAssert.reverts(
-                instance.hashOTP(exchange, web3.utils.utf8ToHex(""))
+                instance.hashOTP(exchange, utf8ToHex(""))
             );
         });
 
@@ -86,7 +86,7 @@ contract('Remittance', (accounts) => {
 
         it('Should fail if the hashOTP is invalid', async () => {
             await truffleAssert.reverts(
-                instance.newOrder(web3.utils.utf8ToHex(""), fiveDays, {from: owner, value: toWei("0.1", "ether")})
+                instance.newOrder(utf8ToHex(""), fiveDays, {from: owner, value: toWei("0.1", "ether")})
             );          
         });
 
@@ -96,7 +96,7 @@ contract('Remittance', (accounts) => {
             );          
         });
 
-        it('Should fail if the hashedOTP is already used', async () => {
+        it('Should fail if the hashedOTP is currently in use', async () => {
             await instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")})
             await truffleAssert.reverts(
                 instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")})
@@ -110,15 +110,7 @@ contract('Remittance', (accounts) => {
         beforeEach('Creating new order', async () => {
             hashedOTP = await instance.hashOTP(exchange, password);
 
-            const txObj = await instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
-
-            assert.strictEqual(txObj.logs.length, 2);
-            assert.strictEqual(txObj.logs[0].event, "LogTakeFees");
-            assert.strictEqual(txObj.logs[0].args[0], owner);
-            assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
-            assert.strictEqual(txObj.logs[1].event, "LogNewOrder");
-            assert.strictEqual(txObj.logs[1].args[0], owner);
-            assert.strictEqual(txObj.logs[1].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            await instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
         });
 
         it('Should be able to cancel an order after one 1 day time', async () => {
@@ -174,7 +166,7 @@ contract('Remittance', (accounts) => {
             await increaseTime(fiveDays);
     
             await truffleAssert.reverts(
-                instance.cancelOrder(web3.utils.utf8ToHex(""), {from: stranger})
+                instance.cancelOrder(utf8ToHex(""), {from: stranger})
             );
         });
     
@@ -191,20 +183,12 @@ contract('Remittance', (accounts) => {
         beforeEach('Creating new order', async () => {
             hashedOTP = await instance.hashOTP(exchange, password);
 
-            const txObj = await instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
-
-            assert.strictEqual(txObj.logs.length, 2);
-            assert.strictEqual(txObj.logs[0].event, "LogTakeFees");
-            assert.strictEqual(txObj.logs[0].args[0], owner);
-            assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
-            assert.strictEqual(txObj.logs[1].event, "LogNewOrder");
-            assert.strictEqual(txObj.logs[1].args[0], owner);
-            assert.strictEqual(txObj.logs[1].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            await instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
         });
         
         it('Should fail if the provided password is invalid', async () => {
             await truffleAssert.reverts(
-                instance.withdraw(web3.utils.utf8ToHex("amIAwes0m3?"), {from: exchange})
+                instance.withdraw(utf8ToHex("amIAwes0m3?"), {from: exchange})
             );
         });
 
@@ -285,7 +269,10 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(txObj.logs[0].event, "LogOwnerChanged");
             assert.strictEqual(txObj.logs[0].args[0], stranger);
 
-            await instance.newOrder(await instance.hashOTP(exchange, web3.utils.utf8ToHex("haha")), fiveDays, {from: owner, value: toWei("0.1", "ether")});
+            await instance.newOrder(await instance.hashOTP(exchange, utf8ToHex("haha")), fiveDays, {
+                from: owner,
+                value: toWei("0.1", "ether")
+            });
 
             let initialBalance = new BN(await web3.eth.getBalance(owner));
 

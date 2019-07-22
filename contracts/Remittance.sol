@@ -17,11 +17,12 @@ contract Remittance is Stoppable {
     mapping(bytes32 => Order) public orders;
     mapping(address => uint) public fees;
     
-    event LogNewOrder(address indexed emitter, uint amount, bytes32 hashedOTP);
-    event LogTakeFees(address indexed emitter, uint amount);
-    event LogCancelOrder(address indexed emitter, uint amount, bytes32 hashedOTP);
-    event LogWithdraw(address indexed emitter, uint amount);
-    
+    event LogNewOrderPlaced(address indexed emitter, uint amount, bytes32 hashedOTP);
+    event LogFeesTaken(address indexed emitter, address owner, uint amount);
+    event LogOrderCancelled(address indexed emitter, uint amount, bytes32 hashedOTP);
+    event LogWithdrawn(address indexed emitter, bytes32 hashedOTP, uint amount);
+    event LogFeesWithdrawn(address indexed emitter, uint amount);
+
     constructor(bool state) Stoppable(state) public {}
     
     function hashOTP(address exchange, bytes32 password) public view returns(bytes32 hash) {
@@ -38,9 +39,9 @@ contract Remittance is Stoppable {
         address owner = getOwner();
         
         fees[owner] = fees[owner].add(TX_FEES);
-        emit LogTakeFees(msg.sender, TX_FEES);
+        emit LogFeesTaken(msg.sender, owner, TX_FEES);
         
-        emit LogNewOrder(msg.sender, amount, hashedOTP);
+        emit LogNewOrderPlaced(msg.sender, amount, hashedOTP);
         orders[hashedOTP] = Order({
             deadline: now.add(delay),
             emitter: msg.sender,
@@ -51,17 +52,15 @@ contract Remittance is Stoppable {
     }
     
     function cancelOrder(bytes32 hashedOTP) public returns(bool success) {
-        require(hashedOTP != 0, "The secret is not set");
-        
         Order memory tx = orders[hashedOTP];
         
         require(tx.amount > 0, "Neither the order does not exist or the password is wrong");
         require(now >= tx.deadline, "You must wait 5 days before cancelling the transaction");
-        require(tx.emitter == msg.sender, "The call must be initiated by the wanted exchange");
+        require(tx.emitter == msg.sender, "The call must be initiated by the emitter");
         
         delete(orders[hashedOTP]);
         
-        emit LogCancelOrder(msg.sender, tx.amount, hashedOTP);
+        emit LogOrderCancelled(msg.sender, tx.amount, hashedOTP);
         msg.sender.transfer(tx.amount);
         
         return true;
@@ -73,11 +72,9 @@ contract Remittance is Stoppable {
         
         require(amount > 0, "Neither the order does not exist or the password is wrong");
         
-        orders[hashedOTP].amount = 0;
-        orders[hashedOTP].deadline = 0;
-        orders[hashedOTP].emitter = address(0);
+        delete(orders[hashedOTP]);
         
-        emit LogWithdraw(msg.sender, amount);
+        emit LogWithdrawn(msg.sender, hashedOTP, amount);
         msg.sender.transfer(amount);
         
         return true;
@@ -90,7 +87,7 @@ contract Remittance is Stoppable {
         
         fees[msg.sender] = 0;
         
-        emit LogWithdraw(msg.sender, amount);
+        emit LogFeesWithdrawn(msg.sender, amount);
         msg.sender.transfer(amount);
         
         return true;

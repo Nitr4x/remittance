@@ -69,11 +69,12 @@ contract('Remittance', (accounts) => {
         it('Should create a new transaction', async () => {
             const txObj = await instance.newOrder(hashedOTP, fiveDays, {from: stranger, value: toWei("0.1", "ether")});
             assert.strictEqual(txObj.logs.length, 2);
-            assert.strictEqual(txObj.logs[0].event, "LogTakeFees");
+            assert.strictEqual(txObj.logs[0].event, "LogFeesTaken");
             assert.strictEqual(txObj.logs[0].args[0], stranger);
-            assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
+            assert.strictEqual(txObj.logs[0].args[1], await instance.getOwner());
+            assert.strictEqual(txObj.logs[0].args[2].toString(), "2000");
     
-            assert.strictEqual(txObj.logs[1].event, "LogNewOrder");
+            assert.strictEqual(txObj.logs[1].event, "LogNewOrderPlaced");
             assert.strictEqual(txObj.logs[1].args[0], stranger);
             assert.strictEqual(txObj.logs[1].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
             
@@ -121,9 +122,10 @@ contract('Remittance', (accounts) => {
     
             let txObj = await instance.cancelOrder(hashedOTP, {from: owner});
             assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogCancelOrder");
+            assert.strictEqual(txObj.logs[0].event, "LogOrderCancelled");
             assert.strictEqual(txObj.logs[0].args[0], owner);
             assert.strictEqual(txObj.logs[0].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            assert.strictEqual(txObj.logs[0].args[2], hashedOTP);
 
             const order = instance.orders.call(hashedOTP);
             assert.strictEqual(order.emitter, undefined);
@@ -134,18 +136,20 @@ contract('Remittance', (accounts) => {
     
             let txObj = await instance.cancelOrder(hashedOTP, {from: owner});
             assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogCancelOrder");
+            assert.strictEqual(txObj.logs[0].event, "LogOrderCancelled");
             assert.strictEqual(txObj.logs[0].args[0], owner);
             assert.strictEqual(txObj.logs[0].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
-    
+            assert.strictEqual(txObj.logs[0].args[2], hashedOTP);
+
             let order = instance.orders.call(hashedOTP);
             assert.strictEqual(order.emitter, undefined);
 
             txObj = await instance.newOrder(hashedOTP, fiveDays, {from: owner, value: toWei("0.1", "ether")});
             assert.strictEqual(txObj.logs.length, 2);
-            assert.strictEqual(txObj.logs[1].event, "LogNewOrder");
+            assert.strictEqual(txObj.logs[1].event, "LogNewOrderPlaced");
             assert.strictEqual(txObj.logs[1].args[0], owner);
             assert.strictEqual(txObj.logs[1].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            assert.strictEqual(txObj.logs[1].args[2], hashedOTP);
 
             order = await instance.orders.call(hashedOTP);
             assert.strictEqual(order.amount.toString(), new BN(toWei("0.1", "ether")).minus(2000).toString())
@@ -205,9 +209,10 @@ contract('Remittance', (accounts) => {
             const gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
 
             assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
+            assert.strictEqual(txObj.logs[0].event, "LogWithdrawn");
             assert.strictEqual(txObj.logs[0].args[0], exchange);
-            assert.strictEqual(txObj.logs[0].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            assert.strictEqual(txObj.logs[0].args[1], hashedOTP);
+            assert.strictEqual(txObj.logs[0].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
 
             initialBalance.minus(txObj.receipt.gasUsed * gasPrice);
             initialBalance.add(toWei("0.1", "ether"));
@@ -248,7 +253,7 @@ contract('Remittance', (accounts) => {
             const gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
 
             assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
+            assert.strictEqual(txObj.logs[0].event, "LogFeesWithdrawn");
             assert.strictEqual(txObj.logs[0].args[0], owner);
             assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
 
@@ -280,7 +285,7 @@ contract('Remittance', (accounts) => {
             let gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
 
             assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
+            assert.strictEqual(txObj.logs[0].event, "LogFeesWithdrawn");
             assert.strictEqual(txObj.logs[0].args[0], owner);
             assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
 
@@ -298,7 +303,7 @@ contract('Remittance', (accounts) => {
             gasPrice = (await web3.eth.getTransaction(txObj.tx)).gasPrice;
 
             assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogWithdraw");
+            assert.strictEqual(txObj.logs[0].event, "LogFeesWithdrawn");
             assert.strictEqual(txObj.logs[0].args[0], stranger);
             assert.strictEqual(txObj.logs[0].args[1].toString(), "2000");
 

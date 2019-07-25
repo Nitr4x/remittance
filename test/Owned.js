@@ -4,38 +4,35 @@ const Owned = artifacts.require('Owned');
 const truffleAssert = require('truffle-assertions');
 
 contract('Owned', (accounts) => {
+    const owner = accounts[0];
+    const stranger = accounts[1];
+
     let instance;
 
-    // Initiating new contract before each test
     beforeEach("Creating new contract", async () => {
-        instance = await Owned.new({from: accounts[0]});
+        instance = await Owned.new({from: owner});
     });
 
-    // Testing getOwner function.
-    it('Owner should be ' + accounts[0], () => {
-        return instance.getOwner()
-            .then(owner => {
-                assert.strictEqual(owner, accounts[0]);
+    it('Owner should be ' + owner, () => {
+        return instance.getOwner({from: owner})
+            .then(_owner => {
+                assert.strictEqual(_owner, owner);
             });
     });
 
-    // Testing changeOwner function.
-    it('Owner should be ' + accounts[1], () => {
-        return instance.changeOwner(accounts[1], {from: accounts[0]})
-            .then((txObj) => {
-                assert.strictEqual(txObj.logs.length, 1);
-                assert.strictEqual(txObj.logs[0].event, "LogOwnerChanged");
-                return instance.getOwner();
+    it('Owner should be ' + stranger, () => {
+        return instance.changeOwner(stranger, {from: owner})
+            .then(() => {
+                return instance.getOwner({from: owner});
             })
-            .then(owner => {
-                assert.strictEqual(owner, accounts[1]);
+            .then(_owner => {
+                assert.strictEqual(_owner, stranger);
             });
     });
 
-    // Testing the _onlyOwner modifier.
-    it('Changing owner from unauthorized account. changeOwner function should fail', async () => {
+    it('Should not authorized changing the owner from someone else than the owner', async () => {
         await truffleAssert.reverts(
-            instance.changeOwner(accounts[1], {from: accounts[1]})
+            instance.changeOwner(stranger, {from: stranger})
         );               
     });
 });

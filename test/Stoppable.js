@@ -4,57 +4,54 @@ const Stoppable = artifacts.require('Stoppable');
 const truffleAssert = require('truffle-assertions');
 
 contract('Stoppable', (accounts) => {
+    const owner = accounts[0];
+    const stranger = accounts[1];
+
     let instance;
 
-    // Initiating new contract before each test
     beforeEach("Creating new contract", async () => {
-        instance = await Stoppable.new({from: accounts[0]});
+        instance = await Stoppable.new({from: owner});
     });
 
-    // Testing that the function resumeContract is reverted if the contract is already running.
-    it('The contract is already running. resumeContract function should fail', async () => {
+    it('Should not be able to resume a contract if it is already running', async () => {
         await truffleAssert.reverts(
-            instance.resumeContract()
+            instance.resumeContract({from: owner})
         );                  
     });
 
-    // Testing that the function pauseContract is reverted if the contract is already paused.
-    it('The contract is already paused. pauseContract function should fail', async () => {
-        const txObj = await instance.pauseContract();
+    it('Should not be able to pause a contract if it is already paused', async () => {
+        const txObj = await instance.pauseContract({from: owner});
         assert.strictEqual(txObj.logs.length, 1);
         assert.strictEqual(txObj.logs[0].event, "LogPausedContract");
 
         await truffleAssert.reverts(
-            instance.pauseContract({from: accounts[0]}) 
+            instance.pauseContract({from: owner}) 
         );
     });
 
-    // Testing that only the owner is able to pause the contract.
-    it('Only the owner should be able to pause the contract', async () => {
+    it('Should only be paused by the contract\'s owner', async () => {
         await truffleAssert.reverts(
-            instance.pauseContract({from: accounts[1]})
+            instance.pauseContract({from: stranger})
         );
     });
 
-    // Testing that only the owner is able to resume the contract when paused.
-    it('Only the owner should be able to resume the contract', async () => {
-        const txObj = await instance.pauseContract({from: accounts[0]});
+    it('Should only be resumed by the contract\'s owner', async () => {
+        const txObj = await instance.pauseContract({from: owner});
         assert.strictEqual(txObj.logs.length, 1);
         assert.strictEqual(txObj.logs[0].event, "LogPausedContract");
         
         await truffleAssert.reverts(
-            instance.resumeContract({from: accounts[1]})
+            instance.resumeContract({from: stranger})
         );
     });
 
-    // Testing the full chain
-    it('Pausing and resuming the contract', () => {
-        return instance.pauseContract({from: accounts[0]})
+    it('Shoudl pause and resume the contract', () => {
+        return instance.pauseContract({from: owner})
             .then(txObj => {
                 assert.strictEqual(txObj.logs.length, 1);
                 assert.strictEqual(txObj.logs[0].event, "LogPausedContract");
                 
-                return instance.resumeContract();
+                return instance.resumeContract({from: owner});
             })
             .then(txObj => {
                 assert.strictEqual(txObj.logs.length, 1);

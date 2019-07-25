@@ -38,8 +38,8 @@ contract Killable is Owned {
     function stopKillingProcess() _onlyOwner public returns(bool success) {
         require(_killingProcess.status, "Killing process is not started yet");
 
-        emit LogKillingProcessStopped(msg.sender);
-        
+        emit LogKillingProcessStopped(msg.sender); 
+
         _killingProcess.killingDate = 0;
         _killingProcess.status = false;
 

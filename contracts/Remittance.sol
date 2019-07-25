@@ -31,7 +31,7 @@ contract Remittance is Stoppable, Killable {
     
     function newOrder(bytes32 hashedOTP, uint delay) _onlyIfRunning _whenKillingProcessNotStarted public payable returns(bool success) {
         require(hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that the secret is set and that your transaction value is above 0");
-        require(delay > 0 days, "Delay should be above 0 day");
+        require(delay > 0, "Delay should be above 0 day");
         require(orders[hashedOTP].emitter == address(0), "Password already used");
         
         uint amount = msg.value.sub(TX_FEES);

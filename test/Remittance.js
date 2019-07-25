@@ -42,7 +42,7 @@ contract('Remittance', (accounts) => {
     };
 
     beforeEach("Creating new contract", async () => {
-        instance = await Remittance.new(true, {from: owner});
+        instance = await Remittance.new({from: owner});
     });
 
     describe('======= hashOTP unit testing =======', () => {

@@ -4,7 +4,7 @@ import './Owned.sol';
 
 contract Stoppable is Owned {
     
-    bool isRunning;
+    bool private isRunning;
     
     event LogPausedContract(address indexed sender);
     event LogResumeContract(address indexed sender);
@@ -14,8 +14,8 @@ contract Stoppable is Owned {
         _;
     }
     
-    constructor(bool state) public {
-        isRunning = state;
+    constructor() public {
+        isRunning = true;
     }
     
     function pauseContract() public _onlyOwner _onlyIfRunning returns(bool success) {

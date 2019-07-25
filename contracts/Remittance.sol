@@ -23,8 +23,6 @@ contract Remittance is Stoppable {
     event LogWithdrawn(address indexed emitter, bytes32 hashedOTP, uint amount);
     event LogFeesWithdrawn(address indexed emitter, uint amount);
 
-    constructor(bool state) Stoppable(state) public {}
-    
     function hashOTP(address exchange, bytes32 password) public view returns(bytes32 hash) {
         require(exchange != address(0) && password != 0, "Both exchange and password must be set");
         hash = keccak256(abi.encodePacked(address(this), exchange, password));

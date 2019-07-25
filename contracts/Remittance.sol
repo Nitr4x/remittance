@@ -70,7 +70,8 @@ contract Remittance is Stoppable {
         
         require(amount > 0, "Neither the order does not exist or the password is wrong");
         
-        delete(orders[hashedOTP]);
+        orders[hashedOTP].deadline = 0;
+        orders[hashedOTP].amount = 0;
         
         emit LogWithdrawn(msg.sender, hashedOTP, amount);
         msg.sender.transfer(amount);

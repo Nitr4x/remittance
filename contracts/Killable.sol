@@ -8,17 +8,17 @@ contract Killable is Owned {
     
     uint public constant DELAY = 30 days;
     
-    struct KillCondition {
+    struct KillingCondition {
         uint killingDate;
         bool status;
     }
     
-    KillCondition private _killProcess;
+    KillingCondition private _killingProcess;
 
     event LogKillingProcessStarted(address emitter, uint deadline);
     
     modifier _whenKillingProcessNotStarted {
-        require(!_killProcess.status, "Killing process is started");
+        require(!_killingProcess.status, "Killing process is started");
         _;
     }
     
@@ -27,16 +27,16 @@ contract Killable is Owned {
         
         emit LogKillingProcessStarted(msg.sender, date);
         
-        _killProcess = KillCondition({killingDate: date, status: true});
+        _killingProcess = KillingCondition({killingDate: date, status: true});
         
         return true;
     }
     
     function isKillingProcessStarted() public view returns(bool) {
-        return _killProcess.status;
+        return _killingProcess.status;
     }
     
     function isReadyToKill() public view returns(bool) {
-        return now > _killProcess.killingDate;
+        return now > _killingProcess.killingDate;
     }
 }

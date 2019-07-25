@@ -1,9 +1,10 @@
 pragma solidity 0.5.10;
 
 import "./SafeMath.sol";
+import "./Killable.sol";
 import "./Stoppable.sol";
 
-contract Remittance is Stoppable {
+contract Remittance is Stoppable, Killable {
     using SafeMath for uint;
     
     struct Order {
@@ -28,7 +29,7 @@ contract Remittance is Stoppable {
         hash = keccak256(abi.encodePacked(address(this), exchange, password));
     }
     
-    function newOrder(bytes32 hashedOTP, uint delay) _onlyIfRunning public payable returns(bool success) {
+    function newOrder(bytes32 hashedOTP, uint delay) _onlyIfRunning _whenKillingProcessNotStarted public payable returns(bool success) {
         require(hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that the secret is set and that your transaction value is above 0");
         require(delay > 0 days, "Delay should be above 0 day");
         require(orders[hashedOTP].emitter == address(0), "Password already used");
@@ -88,6 +89,17 @@ contract Remittance is Stoppable {
         
         emit LogFeesWithdrawn(msg.sender, amount);
         msg.sender.transfer(amount);
+        
+        return true;
+    }
+    
+    function kill() _onlyOwner public returns(bool success) {
+        if (isKillingProcessStarted()) {
+            require(isReadyToKill(), "Cannot kill the contract before the deadline is reached");
+            selfdestruct(msg.sender);
+        } else {
+            startKillingProcess();
+        }
         
         return true;
     }

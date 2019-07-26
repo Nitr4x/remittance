@@ -316,29 +316,4 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(fees.toString(), "0");
         });
     });
-
-    describe('======= kill unit testing =======', () => {
-        it('Should be able to start the killing process', async () => {
-            const txObj = await instance.kill({from: owner});
-            assert.strictEqual(txObj.logs.length, 1);
-            assert.strictEqual(txObj.logs[0].event, "LogKillingProcessStarted");
-            assert.strictEqual(txObj.logs[0].args[0], owner);
-        });
-
-        it('Should not be able to kill the contract', async () => {
-            await instance.kill({from: owner});
-
-            truffleAssert.reverts(
-                instance.kill({from: owner})
-            );
-        });
-
-        it('Should be able to kill the contract', async () => {
-            await instance.kill({from: owner});
-            await increaseTime(60 * 60 * 24 * 31);
-
-            await instance.kill({from: owner});
-            assert.strictEqual(await web3.eth.getCode(instance.address), "0x");
-        });
-    });
 })

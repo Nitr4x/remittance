@@ -1,56 +1,31 @@
 pragma solidity 0.5.10;
 
 import "./SafeMath.sol";
-import "./Owned.sol";
+import "./Stoppable.sol";
 
-contract Killable is Owned {
+contract Killable is Stoppable {
     using SafeMath for uint;
     
-    uint public constant DELAY = 30 days;
+    bool public killed;
     
-    struct KillingCondition {
-        uint killingDate;
-        bool status;
-    }
-    
-    KillingCondition private _killingProcess;
+    event LogContractKilled(address indexed emitter);
 
-    event LogKillingProcessStarted(address emitter, uint deadline);
-    event LogKillingProcessStopped(address emitter);
-
-    modifier _whenKillingProcessNotStarted {
-        require(!_killingProcess.status, "Killing process is started");
+    modifier _whenAlive {
+        require(!killed);
         _;
     }
-    
-    function startKillingProcess() _onlyOwner public returns(bool success) {
-        require(!_killingProcess.status, "Killing process already started");
-
-        uint date = now.add(DELAY);
-        
-        emit LogKillingProcessStarted(msg.sender, date);
-        
-        _killingProcess = KillingCondition({killingDate: date, status: true});
-        
-        return true;
+     
+    constructor() public {
+        killed = false;
     }
     
-    function stopKillingProcess() _onlyOwner public returns(bool success) {
-        require(_killingProcess.status, "Killing process is not started yet");
-
-        emit LogKillingProcessStopped(msg.sender);
+    function kill() _isNotRunning _whenAlive public returns(bool success) {
+        killed = true;
         
-        _killingProcess.killingDate = 0;
-        _killingProcess.status = false;
+        emit LogContractKilled(msg.sender);
+
+        selfdestruct(msg.sender);
 
         return true;
-    }
-
-    function isKillingProcessStarted() public view returns(bool) {
-        return _killingProcess.status;
-    }
-    
-    function isReadyToKill() public view returns(bool) {
-        return (_killingProcess.killingDate != 0 && now > _killingProcess.killingDate);
     }
 }

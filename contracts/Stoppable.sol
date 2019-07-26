@@ -14,6 +14,11 @@ contract Stoppable is Owned {
         _;
     }
     
+    modifier _isNotRunning {
+        require(!isRunning);
+        _;
+    }
+    
     constructor() public {
         isRunning = true;
     }

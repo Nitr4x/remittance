@@ -2,9 +2,8 @@ pragma solidity 0.5.10;
 
 import "./SafeMath.sol";
 import "./Killable.sol";
-import "./Stoppable.sol";
 
-contract Remittance is Stoppable, Killable {
+contract Remittance is Killable {
     using SafeMath for uint;
     
     struct Order {
@@ -29,7 +28,7 @@ contract Remittance is Stoppable, Killable {
         hash = keccak256(abi.encodePacked(address(this), exchange, password));
     }
     
-    function newOrder(bytes32 hashedOTP, uint delay) _onlyIfRunning _whenKillingProcessNotStarted public payable returns(bool success) {
+    function newOrder(bytes32 hashedOTP, uint delay) _whenAlive public payable returns(bool success) {
         require(hashedOTP != 0 && msg.value > 0, "An error occured. Ensure that the secret is set and that your transaction value is above 0");
         require(delay > 0, "Delay should be above 0 day");
         require(orders[hashedOTP].emitter == address(0), "Password already used");
@@ -50,7 +49,7 @@ contract Remittance is Stoppable, Killable {
         return true;
     }
     
-    function cancelOrder(bytes32 hashedOTP) public returns(bool success) {
+    function cancelOrder(bytes32 hashedOTP) _whenAlive public returns(bool success) {
         Order memory tx = orders[hashedOTP];
         
         require(tx.amount > 0, "Neither the order does not exist or the password is wrong");
@@ -65,7 +64,7 @@ contract Remittance is Stoppable, Killable {
         return true;
     }
     
-    function withdraw(bytes32 password) public returns(bool success) {
+    function withdraw(bytes32 password) _whenAlive public returns(bool success) {
         bytes32 hashedOTP = hashOTP(msg.sender, password);
         uint amount = orders[hashedOTP].amount;
         
@@ -80,7 +79,7 @@ contract Remittance is Stoppable, Killable {
         return true;
     }
     
-    function withdrawFees() public returns(bool success) {
+    function withdrawFees()_whenAlive public returns(bool success) {
         uint amount = fees[msg.sender];
         
         require(amount > 0, "Nothing to withdraw");
@@ -89,17 +88,6 @@ contract Remittance is Stoppable, Killable {
         
         emit LogFeesWithdrawn(msg.sender, amount);
         msg.sender.transfer(amount);
-        
-        return true;
-    }
-    
-    function kill() _onlyOwner public returns(bool success) {
-        if (isKillingProcessStarted()) {
-            require(isReadyToKill(), "Cannot kill the contract before the deadline is reached");
-            selfdestruct(msg.sender);
-        } else {
-            startKillingProcess();
-        }
         
         return true;
     }

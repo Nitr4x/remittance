@@ -1,41 +1,31 @@
 pragma solidity 0.5.10;
 
-import './Owned.sol';
+import "./SafeMath.sol";
+import "./Stoppable.sol";
 
-contract Stoppable is Owned {
+contract Killable is Stoppable {
+    using SafeMath for uint;
     
-    bool private isRunning;
+    bool public killed;
     
-    event LogPausedContract(address indexed sender);
-    event LogResumeContract(address indexed sender);
-    
-    modifier _onlyIfRunning {
-        require(isRunning);
+    event LogContractKilled(address indexed emitter);
+
+    modifier _whenAlive {
+        require(!killed);
         _;
     }
-    
-    modifier _isNotRunning {
-        require(!isRunning);
-        _;
-    }
-    
+     
     constructor() public {
-        isRunning = true;
+        killed = false;
     }
     
-    function pauseContract() public _onlyOwner _onlyIfRunning returns(bool success) {
-        isRunning = false;
+    function kill() _isNotRunning _whenAlive public returns(bool success) {
+        killed = true;
         
-        emit LogPausedContract(msg.sender);
-        
-        return true;
-    }
-    
-    function resumeContract() public _onlyOwner _isNotRunning returns(bool success) {        
-        isRunning = true;
-        
-        emit LogResumeContract(msg.sender);
-        
+        emit LogContractKilled(msg.sender);
+
+        selfdestruct(msg.sender);
+
         return true;
     }
 }

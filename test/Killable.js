@@ -21,7 +21,9 @@ contract('Killable', (accounts) => {
     it('Should be able to kill the contract', async () => {
         await instance.pauseContract({from: owner});
 
-        await instance.kill({from: owner});
-        assert.strictEqual(await web3.eth.getCode(instance.address), "0x");
+        const txObj = await instance.kill({from: owner});
+        assert.strictEqual(txObj.logs.length, 1);
+        assert.strictEqual(txObj.logs[0].event, "LogContractKilled");
+        assert.strictEqual(txObj.logs[0].args[0], owner);
     });
 });

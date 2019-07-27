@@ -20,12 +20,10 @@ contract Killable is Stoppable {
     }
     
     function kill() _isNotRunning _whenAlive public returns(bool success) {
-        killed = true;
-        
         emit LogContractKilled(msg.sender);
 
-        selfdestruct(msg.sender);
-
+        killed = true;
+        
         return true;
     }
 }

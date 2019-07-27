@@ -49,7 +49,7 @@ contract Remittance is Killable {
         return true;
     }
     
-    function cancelOrder(bytes32 hashedOTP) _whenAlive public returns(bool success) {
+    function cancelOrder(bytes32 hashedOTP) public returns(bool success) {
         Order memory tx = orders[hashedOTP];
         
         require(tx.amount > 0, "Neither the order does not exist or the password is wrong");
@@ -64,7 +64,7 @@ contract Remittance is Killable {
         return true;
     }
     
-    function withdraw(bytes32 password) _whenAlive public returns(bool success) {
+    function withdraw(bytes32 password) public returns(bool success) {
         bytes32 hashedOTP = hashOTP(msg.sender, password);
         uint amount = orders[hashedOTP].amount;
         
@@ -79,7 +79,7 @@ contract Remittance is Killable {
         return true;
     }
     
-    function withdrawFees()_whenAlive public returns(bool success) {
+    function withdrawFees() public returns(bool success) {
         uint amount = fees[msg.sender];
         
         require(amount > 0, "Nothing to withdraw");

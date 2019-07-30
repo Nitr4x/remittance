@@ -76,8 +76,9 @@ contract('Remittance', (accounts) => {
     
             assert.strictEqual(txObj.logs[1].event, "LogNewOrderPlaced");
             assert.strictEqual(txObj.logs[1].args[0], stranger);
-            assert.strictEqual(txObj.logs[1].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
-            
+            assert.strictEqual(txObj.logs[1].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            assert.strictEqual(txObj.logs[1].args[3], hashedOTP);
+
             const order = await instance.orders.call(hashedOTP);
             assert.strictEqual(order.amount.toString(), new BN(toWei("0.1", "ether")).minus(2000).toString())
 
@@ -148,8 +149,8 @@ contract('Remittance', (accounts) => {
             assert.strictEqual(txObj.logs.length, 2);
             assert.strictEqual(txObj.logs[1].event, "LogNewOrderPlaced");
             assert.strictEqual(txObj.logs[1].args[0], owner);
-            assert.strictEqual(txObj.logs[1].args[1].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
-            assert.strictEqual(txObj.logs[1].args[2], hashedOTP);
+            assert.strictEqual(txObj.logs[1].args[2].toString(), new BN(toWei("0.1", "ether")).minus(2000).toString());
+            assert.strictEqual(txObj.logs[1].args[3], hashedOTP);
 
             order = await instance.orders.call(hashedOTP);
             assert.strictEqual(order.amount.toString(), new BN(toWei("0.1", "ether")).minus(2000).toString())

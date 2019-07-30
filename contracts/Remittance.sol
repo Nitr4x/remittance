@@ -17,7 +17,7 @@ contract Remittance is Killable {
     mapping(bytes32 => Order) public orders;
     mapping(address => uint) public fees;
     
-    event LogNewOrderPlaced(address indexed emitter, uint amount, bytes32 hashedOTP);
+    event LogNewOrderPlaced(address indexed emitter, unint deadline, uint amount, bytes32 hashedOTP);
     event LogFeesTaken(address indexed emitter, address owner, uint amount);
     event LogOrderCancelled(address indexed emitter, uint amount, bytes32 hashedOTP);
     event LogWithdrawn(address indexed emitter, bytes32 hashedOTP, uint amount);
@@ -34,14 +34,15 @@ contract Remittance is Killable {
         require(orders[hashedOTP].emitter == address(0), "Password already used");
         
         uint amount = msg.value.sub(TX_FEES);
+        uint deadline = now.add(delay);
         address owner = getOwner();
         
         fees[owner] = fees[owner].add(TX_FEES);
         emit LogFeesTaken(msg.sender, owner, TX_FEES);
         
-        emit LogNewOrderPlaced(msg.sender, amount, hashedOTP);
+        emit LogNewOrderPlaced(msg.sender, deadline, amount, hashedOTP);
         orders[hashedOTP] = Order({
-            deadline: now.add(delay),
+            deadline: deadline,
             emitter: msg.sender,
             amount: amount
         });

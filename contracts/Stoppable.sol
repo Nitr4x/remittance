@@ -31,9 +31,7 @@ contract Stoppable is Owned {
         return true;
     }
     
-    function resumeContract() public _onlyOwner returns(bool success) {
-        require(!isRunning);
-        
+    function resumeContract() public _onlyOwner _isNotRunning returns(bool success) {        
         isRunning = true;
         
         emit LogResumeContract(msg.sender);

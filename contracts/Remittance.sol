@@ -17,7 +17,7 @@ contract Remittance is Killable {
     mapping(bytes32 => Order) public orders;
     mapping(address => uint) public fees;
     
-    event LogNewOrderPlaced(address indexed emitter, unint deadline, uint amount, bytes32 hashedOTP);
+    event LogNewOrderPlaced(address indexed emitter, uint deadline, uint amount, bytes32 hashedOTP);
     event LogFeesTaken(address indexed emitter, address owner, uint amount);
     event LogOrderCancelled(address indexed emitter, uint amount, bytes32 hashedOTP);
     event LogWithdrawn(address indexed emitter, bytes32 hashedOTP, uint amount);
